@@ -1,0 +1,229 @@
+{
+  "name": "scheduled-copilot-agent",
+  "displayName": "Copilot Autonomous Loop",
+  "description": "Autonomous task planning, execution, and monitoring dashboard with drag-drop task management, workspace audit, quality KPIs, and LM-powered decision support.",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamishakerian-alt/scheduled-copilot-agent"
+  },
+  "version": "0.3.0",
+  "publisher": "kamishakerian",
+  "engines": {
+    "vscode": "^1.118.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
+  "keywords": [
+    "copilot",
+    "agent",
+    "scheduler",
+    "automation",
+    "productivity"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "scheduledCopilotAgent.start",
+        "title": "Copilot Autonomous Loop: Start"
+      },
+      {
+        "command": "scheduledCopilotAgent.stop",
+        "title": "Copilot Autonomous Loop: Stop"
+      },
+      {
+        "command": "scheduledCopilotAgent.triggerNow",
+        "title": "Copilot Autonomous Loop: Trigger Now"
+      },
+      {
+        "command": "scheduledCopilotAgent.openDashboard",
+        "title": "Copilot Autonomous Loop: Open Dashboard"
+      },
+      {
+        "command": "scheduledCopilotAgent.importKnowledgeInbox",
+        "title": "Copilot Autonomous Loop: Import Knowledge Inbox"
+      },
+      {
+        "command": "scheduledCopilotAgent.backupState",
+        "title": "Copilot Autonomous Loop: Backup State"
+      }
+    ],
+    "configuration": {
+      "title": "Copilot Autonomous Loop",
+      "properties": {
+        "scheduledCopilotAgent.stateFilePath": {
+          "type": "string",
+          "default": "state.json",
+          "description": "Relative or absolute path to the local state JSON file (agent memory/DB)."
+        },
+        "scheduledCopilotAgent.importFolderPath": {
+          "type": "string",
+          "default": "imports",
+          "description": "Folder path for knowledge inbox imports (.txt, .md, .json, .html)."
+        },
+        "scheduledCopilotAgent.intervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 1,
+          "description": "How often to trigger a Copilot agent cycle (in seconds, minimum 1s)."
+        },
+        "scheduledCopilotAgent.uiContinuousDelayMs": {
+          "type": "number",
+          "default": 2500,
+          "minimum": 0,
+          "description": "Delay between back-to-back cycles in continuous Copilot UI mode to avoid command spamming (milliseconds)."
+        },
+        "scheduledCopilotAgent.requireManualStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, the extension never auto-starts scheduler/cycles on VS Code open. User must manually trigger or start scheduler."
+        },
+        "scheduledCopilotAgent.intervalMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 1,
+          "description": "Legacy setting. Prefer intervalSeconds for second-precision scheduling.",
+          "markdownDeprecationMessage": "Use `scheduledCopilotAgent.intervalSeconds` for second-precision scheduling."
+        },
+        "scheduledCopilotAgent.dailyTriggerTimes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Specific times to trigger a cycle each day in HH:MM format (Europe/Berlin timezone). Example: [\"09:00\", \"21:00\"]"
+        },
+        "scheduledCopilotAgent.copilotOpenCommand": {
+          "type": "string",
+          "default": "workbench.action.chat.open",
+          "description": "VS Code command used to open Copilot Chat (fallback when LM API unavailable)."
+        },
+        "scheduledCopilotAgent.copilotOpenArgs": {
+          "type": [
+            "string",
+            "object",
+            "array",
+            "null"
+          ],
+          "default": null,
+          "description": "Optional arguments for the Copilot Chat fallback command."
+        },
+        "scheduledCopilotAgent.modelFamily": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "gpt-4",
+            "gpt-4.1",
+            "gpt-4o",
+            "o3",
+            "claude-sonnet"
+          ],
+          "enumDescriptions": [
+            "Auto-select the first available Copilot model.",
+            "Use GPT-4 family if available.",
+            "Use GPT-4.1 family if available.",
+            "Use GPT-4o family if available.",
+            "Use o3 family if available.",
+            "Use Claude Sonnet family if available."
+          ],
+          "description": "Copilot model family for LM API. Use 'auto' to let VS Code pick the first available model, or set a specific family like gpt-4o, gpt-4.1, o3, claude-sonnet."
+        },
+        "scheduledCopilotAgent.promptTemplate": {
+          "type": "string",
+          "default": "Current agent state:\n\n${state}\n\nReview the state and continue work on the highest priority active task.",
+          "description": "User prompt template. ${state} is replaced with the full state JSON."
+        },
+        "scheduledCopilotAgent.systemPrompt": {
+          "type": "string",
+          "default": "",
+          "description": "System prompt for the LM. Leave blank to use the built-in Kami context prompt."
+        },
+        "scheduledCopilotAgent.launchOnActivate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Legacy auto-start flag. Effective only when requireManualStart is false."
+        },
+        "scheduledCopilotAgent.backupStateOnCycle": {
+          "type": "boolean",
+          "default": true,
+          "description": "Create a dated backup of state.json before each cycle."
+        },
+        "scheduledCopilotAgent.autoStopOnObjectiveReached": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically stop the scheduler when the agent reports objectiveReached=true or when no active/pending tasks remain."
+        },
+        "scheduledCopilotAgent.maxIterations": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Maximum scheduler cycles before automatic stop. Use 0 for unlimited iterations."
+        },
+        "scheduledCopilotAgent.autonomousExecutionMode": {
+          "type": "string",
+          "default": "continuous",
+          "enum": [
+            "continuous",
+            "interval"
+          ],
+          "description": "Autonomy cadence. 'continuous' runs self-paced back-to-back iterations until a stop condition is reached. 'interval' runs on timer schedule."
+        },
+        "scheduledCopilotAgent.completionThresholdPercent": {
+          "type": "number",
+          "default": 90,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Stop threshold in percent based on agent-reported progressPercent. When reached, current focus can be auto-marked done and scheduler stops."
+        },
+        "scheduledCopilotAgent.maxAutonomousIterationsPerRun": {
+          "type": "number",
+          "default": 100,
+          "minimum": 1,
+          "description": "Safety cap for continuous mode: max back-to-back LM iterations per execute run before forced stop."
+        },
+        "scheduledCopilotAgent.executionMode": {
+          "type": "string",
+          "default": "copilot-ui",
+          "enum": [
+            "lm-api",
+            "copilot-ui"
+          ],
+          "description": "Execution path for each cycle. Default is 'copilot-ui' for interactive full-autonomy sessions; LM tracking remains available as an overlay for state progression."
+        },
+        "scheduledCopilotAgent.availableModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "auto",
+            "gpt-4",
+            "gpt-4.1",
+            "gpt-4o",
+            "o3",
+            "claude-sonnet"
+          ],
+          "markdownDeprecationMessage": "Use `scheduledCopilotAgent.modelFamily` (dropdown with all supported values, including auto)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.118.0",
+    "typescript": "^5.5.4"
+  }
+}
